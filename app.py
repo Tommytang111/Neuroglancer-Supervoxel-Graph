@@ -89,6 +89,16 @@ class StatePaths:
         )
 
 
+class ConsoleDownloadProgress(tqdm):
+    """Force torch_em's byte progress bar onto visible standard output."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs["file"] = sys.stdout
+        kwargs["disable"] = False
+        kwargs.setdefault("dynamic_ncols", True)
+        super().__init__(*args, **kwargs)
+
+
 def ensure_data_file(data_path: Path) -> Path:
     """Download CREMI sample A when the default data file is missing."""
 
@@ -103,6 +113,7 @@ def ensure_data_file(data_path: Path) -> Path:
         )
 
     try:
+        from torch_em.data.datasets import util as torch_em_dataset_util
         from torch_em.data.datasets.electron_microscopy.cremi import (
             get_cremi_paths,
         )
@@ -113,14 +124,25 @@ def ensure_data_file(data_path: Path) -> Path:
             "'python -m pip install -r requirements.txt'."
         ) from error
 
-    print(f"CREMI sample A was not found at {data_path}; downloading it now...")
-    downloaded_path = Path(
-        get_cremi_paths(
-            str(DEFAULT_DATA_PATH.parent),
-            samples=("A",),
-            download=True,
-        )[0]
-    ).resolve()
+    print(
+        f"CREMI sample A was not found at {data_path}; downloading it now.\n"
+        "Download progress:",
+        flush=True,
+    )
+    # Keep torch_em's streaming download and checksum validation, but display
+    # its progress on stdout because some consoles hide stderr.
+    original_progress_class = torch_em_dataset_util.tqdm
+    torch_em_dataset_util.tqdm = ConsoleDownloadProgress
+    try:
+        downloaded_path = Path(
+            get_cremi_paths(
+                str(DEFAULT_DATA_PATH.parent),
+                samples=("A",),
+                download=True,
+            )[0]
+        ).resolve()
+    finally:
+        torch_em_dataset_util.tqdm = original_progress_class
 
     if not downloaded_path.exists():
         raise FileNotFoundError(

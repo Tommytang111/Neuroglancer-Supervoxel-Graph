@@ -39,14 +39,13 @@ python app.py
 ```
 
 On the first run, `torch_em` downloads approximately 167 MB to
-`data/sampleA.h5`. The application then prints a Neuroglancer URL and normally
-opens it in the default browser. Keep the terminal process running while using
-the viewer.
+`data/sampleA.h5`. A byte-level progress bar is forced onto standard output so
+it remains visible in consoles that hide standard error.
 
 For a CREMI file elsewhere:
 
 ```bash
-python app.py --data /path/to/sample_A_20160501.hdf
+python app.py --data /path/to/file_of_interest.h5
 ```
 
 An explicitly supplied `--data` path must already exist. Automatic downloading
@@ -56,6 +55,9 @@ silently ignores a custom path.
 Useful options:
 
 ```bash
+#Run on default settings
+python app.py
+
 # Use an explicit crop in Z,Y,X order.
 python app.py --data data/sampleA.h5 --crop 0:32,433:817,433:817
 
@@ -74,6 +76,20 @@ See every option with:
 ```bash
 python app.py --help
 ```
+
+## Default data configuration
+
+- **Crop:** `Z=0:32, Y=433:817, X=433:817` in the CREMI HDF5 file's
+  `Z,Y,X` order. After conversion to Neuroglancer's `X,Y,Z` order, the array
+  shape is `384 x 384 x 32` voxels.
+- **Voxel resolution:** CREMI Sample A reports `40 x 4 x 4 nm` in `Z,Y,X`
+  order, which the application converts to `4 x 4 x 40 nm` in `X,Y,Z` order.
+  The value is read from the HDF5 metadata rather than hard-coded.
+- **Supervoxel block size:** `64 x 64 x 8` voxels in `X,Y,Z` order. At the
+  CREMI resolution, each block spans approximately `256 x 256 x 320 nm`.
+
+The default crop size and block size can be changed with `--crop-size` and
+`--block-shape`, or an exact crop can be selected with `--crop`.
 
 ## Controls
 
@@ -94,17 +110,17 @@ By default, generated files are stored in `state/` beside `app.py`:
 
 - `supervoxels_xyz.npy`: deterministic supervoxel volume
 - `preprocessing.json`: crop, resolution, and content fingerprint
-- `edits.json`: current graph plus edit history
+- `state/edits.json`: current graph plus edit history
 
-The application saves `edits.json` after every successful merge or split and
-loads it at the next launch. It refuses to apply state to an incompatible crop.
-Use a different `--state-dir` for a different crop, or pass `--reset-state` when
-you intentionally want to discard the existing state.
+The application saves `state/edits.json` after every successful merge or split
+and loads it at the next launch. A custom `--state-dir` changes this location to
+`<state-dir>/edits.json`. The application refuses to apply state to an
+incompatible crop. Use a different `--state-dir` for a different crop, or pass
+`--reset-state` when you intentionally want to discard the existing state.
 
 ## Deployment notes
 
 The default server binds to `127.0.0.1`, so only the same computer can connect.
-This is the safest mode for a take-home demonstration.
 
 For a controlled remote machine you may use Neuroglancer's server options:
 
@@ -119,11 +135,3 @@ python app.py \
 The viewer URL contains a random secret that grants access to the Python-backed
 data source. Do not publish or reuse that URL. Production internet deployment
 should additionally place the application behind TLS and access controls.
-
-## First-run behavior
-
-If `data/sampleA.h5` is absent, the application first downloads CREMI sample A.
-It then starts Neuroglancer before constructing the supervoxels, so the browser
-shows them appearing as blocks are processed. Finally, it builds the adjacency
-graph and switches to the finished two-panel editor. Later runs reuse the data
-file, cached supervoxel volume, and saved graph directly.
