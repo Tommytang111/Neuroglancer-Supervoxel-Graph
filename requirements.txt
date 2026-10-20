@@ -1,0 +1,6 @@
+neuroglancer>=2.41.2,<3
+h5py>=3.10
+networkx>=3.2
+numpy>=1.26
+scipy>=1.11
+tqdm>=4.66
