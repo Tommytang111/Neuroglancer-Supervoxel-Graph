@@ -3,12 +3,13 @@
 
 The application:
 
-1. Loads a small XYZ crop from a CREMI HDF5 file.
-2. Shows the EM image and supplied neuron labels in Neuroglancer.
-3. Builds or restores a connected-supervoxel volume.
-4. Represents edited objects as connected components of a graph.
-5. Supports two-seed merge and minimum-cut split operations.
-6. Saves the graph after every edit and restores it at the next launch.
+1. Downloads CREMI sample A when the default HDF5 file is missing.
+2. Loads a small XYZ crop from the CREMI HDF5 file.
+3. Shows the EM image and supplied neuron labels in Neuroglancer.
+4. Builds or restores a connected-supervoxel volume.
+5. Represents edited objects as connected components of a graph.
+6. Supports two-seed merge and minimum-cut split operations.
+7. Saves the graph after every edit and restores it at the next launch.
 
 Run ``python app.py --help`` for all options.
 """
@@ -86,6 +87,48 @@ class StatePaths:
             preprocessing=directory / PREPROCESSING_FILENAME,
             edits=directory / EDITS_FILENAME,
         )
+
+
+def ensure_data_file(data_path: Path) -> Path:
+    """Download CREMI sample A when the default data file is missing."""
+
+    if data_path.exists():
+        print(f"Using existing CREMI data: {data_path}")
+        return data_path
+
+    if data_path != DEFAULT_DATA_PATH:
+        raise FileNotFoundError(
+            f"The requested CREMI file does not exist: {data_path}. "
+            "Automatic download is only used for the default data/sampleA.h5 path."
+        )
+
+    try:
+        from torch_em.data.datasets.electron_microscopy.cremi import (
+            get_cremi_paths,
+        )
+    except ImportError as error:
+        raise RuntimeError(
+            "Downloading CREMI sample A requires torch_em. "
+            "Install the application dependencies with "
+            "'python -m pip install -r requirements.txt'."
+        ) from error
+
+    print(f"CREMI sample A was not found at {data_path}; downloading it now...")
+    downloaded_path = Path(
+        get_cremi_paths(
+            str(DEFAULT_DATA_PATH.parent),
+            samples=("A",),
+            download=True,
+        )[0]
+    ).resolve()
+
+    if not downloaded_path.exists():
+        raise FileNotFoundError(
+            f"The downloader returned a missing file: {downloaded_path}"
+        )
+
+    print(f"Downloaded CREMI sample A to {downloaded_path}")
+    return downloaded_path
 
 
 def parse_positive_triplet(value: str, option_name: str) -> tuple[int, int, int]:
@@ -1068,7 +1111,7 @@ def run() -> int:
     except argparse.ArgumentTypeError as error:
         parser.error(str(error))
 
-    data_path = args.data.expanduser().resolve()
+    data_path = ensure_data_file(args.data.expanduser().resolve())
     paths = StatePaths.from_directory(args.state_dir.expanduser())
     paths.directory.mkdir(parents=True, exist_ok=True)
     if args.reset_state:

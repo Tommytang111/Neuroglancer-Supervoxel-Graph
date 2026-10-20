@@ -4,3 +4,4 @@ networkx>=3.2
 numpy>=1.26
 scipy>=1.11
 tqdm>=4.66
+torch_em>=0.10.8

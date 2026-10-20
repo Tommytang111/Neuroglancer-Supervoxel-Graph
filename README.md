@@ -7,11 +7,11 @@ persistent merge and split edits from the Neuroglancer client.
 ## Requirements
 
 - Python 3.11 or newer
-- A CREMI HDF5 file containing:
-  - `volumes/raw`
-  - `volumes/labels/neuron_ids`
+- Internet access on the first run so `torch_em` can download CREMI sample A
 
-The default data location is `data/sampleA.h5` beside `app.py`.
+The default data location is `data/sampleA.h5` beside `app.py`. If that file
+does not exist, the application automatically downloads CREMI sample A before
+loading the crop. Existing files are reused and are not downloaded again.
 
 ## Install
 
@@ -35,17 +35,23 @@ On Windows PowerShell, activate the environment with:
 From this directory:
 
 ```bash
-python app.py --data data/sampleA.h5
+python app.py
 ```
 
-The application prints a Neuroglancer URL and normally opens it in the default
-browser. Keep the terminal process running while using the viewer.
+On the first run, `torch_em` downloads approximately 167 MB to
+`data/sampleA.h5`. The application then prints a Neuroglancer URL and normally
+opens it in the default browser. Keep the terminal process running while using
+the viewer.
 
 For a CREMI file elsewhere:
 
 ```bash
 python app.py --data /path/to/sample_A_20160501.hdf
 ```
+
+An explicitly supplied `--data` path must already exist. Automatic downloading
+is limited to the default `data/sampleA.h5` location so the application never
+silently ignores a custom path.
 
 Useful options:
 
@@ -116,7 +122,8 @@ should additionally place the application behind TLS and access controls.
 
 ## First-run behavior
 
-On the first run, the application starts Neuroglancer before constructing the
-supervoxels. The browser therefore shows the supervoxels appearing as blocks
-are processed. It then builds the adjacency graph and switches to the finished
-two-panel editor. Later runs restore the cached volume and saved graph directly.
+If `data/sampleA.h5` is absent, the application first downloads CREMI sample A.
+It then starts Neuroglancer before constructing the supervoxels, so the browser
+shows them appearing as blocks are processed. Finally, it builds the adjacency
+graph and switches to the finished two-panel editor. Later runs reuse the data
+file, cached supervoxel volume, and saved graph directly.
